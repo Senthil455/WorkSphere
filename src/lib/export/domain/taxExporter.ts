@@ -81,6 +81,16 @@ export function filterBookingsByRange<T extends { date: string }>(
   return bookings.filter((b) => b.date >= range.start && b.date <= range.end);
 }
 
+/**
+ * Billable hours for a booking. Durations are stored in minutes; missing
+ * values default to a full hour while zero/negative/corrupt rows bill nothing.
+ */
+function billingHours(duration?: number | null): number {
+  const minutes = duration ?? 60;
+  if (!Number.isFinite(minutes) || minutes <= 0) return 0;
+  return minutes / 60;
+}
+
 export function computeTaxTotals(
   bookings: { duration?: number | null }[],
 ): TaxTotals {
@@ -88,7 +98,7 @@ export function computeTaxTotals(
   let tax = 0;
 
   for (const b of bookings) {
-    const hours = (b.duration || 60) / 60;
+    const hours = billingHours(b.duration);
     const price = hours * 15;
     subtotal += price;
     tax += Number((price * 0.08).toFixed(2));
@@ -121,14 +131,14 @@ export function bookingsToCSV(bookings: ExportableBooking[]): string {
     {
       header: "Price ($)",
       accessor: (b) => {
-        const hours = (b.duration || 60) / 60;
+        const hours = billingHours(b.duration);
         return (hours * 15).toFixed(2);
       },
     },
     {
       header: "Tax ($)",
       accessor: (b) => {
-        const hours = (b.duration || 60) / 60;
+        const hours = billingHours(b.duration);
         const price = hours * 15;
         return (price * 0.08).toFixed(2);
       },
